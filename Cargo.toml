@@ -1,0 +1,26 @@
+[package]
+name = "damage-numbers"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+anyhow = "1.0.104"
+ilhook = { version = "2.3.0", default-features = false, features = ["x86"] }
+bunny-plugin = { git = "https://github.com/Relial/bunny-plugin.git", tag = "api-v3", features = ["serde"] }
+bunny-components = { path = "../bunny-components" }
+tracing = "0.1.44"
+tracing-subscriber = "0.3.23"
+serde = { version = "1.0.229", features = ["derive"] }
+toml = "1.1.2"
+windows = { version = "0.*", features = [
+    "Win32_Foundation",
+    "Win32_System_SystemServices",
+    "Win32_System_LibraryLoader",
+] }
+glam = "0.33.4"
+mhfz-structs = { path = "../mhfz-structs" }
+numfmt = "1.2.0"
+strum = { version = "0.28.0", features = ["derive"] }
