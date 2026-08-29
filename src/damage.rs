@@ -3,6 +3,8 @@ use std::time::{Duration, Instant};
 use bunny_plugin::bunny_ui::{Color32, Vec2, vec2};
 use glam::Vec3;
 
+use crate::config::DamageSettings;
+
 pub const OFFSET_SEQUENCE: [Vec2; 8] = [
     vec2(0.0, 0.0),
     vec2(-50.0, 10.0),
@@ -29,7 +31,7 @@ pub struct DamageInstance {
     damage: String,
     position: Vec3,
     time: Instant,
-    damage_settings: DamageSettings,
+    damage_settings: PaintSettings,
 }
 
 impl DamageInstance {
@@ -37,7 +39,7 @@ impl DamageInstance {
         damage: i16,
         position: Vec3,
         formatter: &numfmt::Formatter,
-        settings: DamageSettings,
+        settings: PaintSettings,
     ) -> Self {
         Self {
             damage: formatter.fmt_string(damage),
@@ -84,14 +86,14 @@ impl DamageInstance {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct DamageSettings {
+pub struct PaintSettings {
     pub position_offset: Vec2,
     pub color: Color32,
     pub scale: f32,
     pub duration_modifier: f32,
 }
 
-impl Default for DamageSettings {
+impl Default for PaintSettings {
     fn default() -> Self {
         Self {
             position_offset: Vec2::ZERO,
@@ -102,7 +104,7 @@ impl Default for DamageSettings {
     }
 }
 
-impl DamageSettings {
+impl PaintSettings {
     #[inline]
     pub fn with_position_offset(mut self, position_offset: Vec2) -> Self {
         self.position_offset = position_offset;
@@ -124,6 +126,19 @@ impl DamageSettings {
     #[inline]
     pub fn with_duration_modifier(mut self, duration_modifier: f32) -> Self {
         self.duration_modifier = duration_modifier;
+        self
+    }
+
+    #[inline]
+    pub fn with_damage_settings(mut self, damage_settings: DamageSettings) -> Self {
+        let DamageSettings {
+            color,
+            scale,
+            duration,
+        } = damage_settings;
+        self.color = color;
+        self.scale = scale;
+        self.duration_modifier = duration;
         self
     }
 }

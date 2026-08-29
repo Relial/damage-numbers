@@ -9,7 +9,6 @@ use bunny_plugin::{
         containers::{combo_box::ComboBox, frame::Frame, grid::Grid},
         paint::text::fonts::FontId,
         ui::BunnyUi,
-        vec2,
         widget_text::RichText,
         widgets::{button::Button, drag_value::DragValue, separator::Separator},
     },
@@ -31,9 +30,7 @@ pub struct State {
     pub config: Config,
     config_path: PathBuf,
     pub structs: MhfzStructs,
-    pub hits: Vec<DamageInstance>,
-    pub poison: Vec<DamageInstance>,
-    pub ice_age: Vec<DamageInstance>,
+    pub damage: Vec<DamageInstance>,
     pub in_animation: InAnimation,
     pub out_animation: OutAnimation,
     pub hit_offset: HitOffset,
@@ -55,9 +52,7 @@ impl State {
             config_path,
             config,
             structs,
-            hits: Vec::new(),
-            poison: Vec::new(),
-            ice_age: Vec::new(),
+            damage: Vec::new(),
             in_animation: Default::default(),
             out_animation: Default::default(),
             hit_offset: Default::default(),
@@ -300,29 +295,29 @@ impl<'a> State {
         let max_rect = ui.max_rect();
         let base_duration = Duration::from_secs_f32(config.base_duration_secs);
 
-        self.hits.retain(|hit| {
-            let duration = base_duration.mul_f32(hit.duration_modifier());
+        self.damage.retain(|damage_instance| {
+            let duration = base_duration.mul_f32(damage_instance.duration_modifier());
             if duration == Duration::ZERO {
                 return false;
             }
-            let elapsed = hit.elapsed();
-            if let Some((screen_pos, _)) = camera.world_to_screen(hit.position()) {
+            let elapsed = damage_instance.elapsed();
+            if let Some((screen_pos, _)) = camera.world_to_screen(damage_instance.position()) {
                 let screen_pos = Vec2 {
                     x: screen_pos.x,
                     y: screen_pos.y,
                 };
                 let remaining = duration.saturating_sub(elapsed);
                 let mut text = Text::new(
-                    hit.damage(),
+                    damage_instance.damage(),
                     FontId {
                         family: config.font.clone(),
-                        size: (config.font_size * hit.scale()).min(MAX_FONT_SIZE),
+                        size: (config.font_size * damage_instance.scale()).min(MAX_FONT_SIZE),
                     },
                 )
                 .with_shadow(TextShadow::default())
-                .with_pos(screen_pos + hit.position_offset())
+                .with_pos(screen_pos + damage_instance.position_offset())
                 .with_pivot(Align2::CENTER_CENTER)
-                .with_color(hit.color());
+                .with_color(damage_instance.color());
                 if self.config.animations {
                     self.in_animation.apply(elapsed, &mut text);
                     self.out_animation.apply(remaining, &mut text);
@@ -330,72 +325,6 @@ impl<'a> State {
                 text.paint(painter, max_rect);
             }
             elapsed < duration
-        });
-
-        let poison_scale = (config.font_size * config.poison.scale).min(MAX_FONT_SIZE);
-        let poison_duration = base_duration.mul_f32(config.poison.duration);
-        if poison_duration == Duration::ZERO {
-            self.poison.clear();
-        }
-        self.poison.retain(|poison| {
-            let elapsed = poison.elapsed();
-            if let Some((screen_pos, _)) = camera.world_to_screen(poison.position()) {
-                let screen_pos = Vec2 {
-                    x: screen_pos.x,
-                    y: screen_pos.y,
-                };
-                let remaining = poison_duration.saturating_sub(elapsed);
-                let mut text = Text::new(
-                    poison.damage(),
-                    FontId {
-                        family: config.font.clone(),
-                        size: poison_scale,
-                    },
-                )
-                .with_shadow(TextShadow::default())
-                .with_pos(screen_pos - vec2(100.0, 0.0))
-                .with_pivot(Align2::CENTER_CENTER)
-                .with_color(poison.color());
-                if self.config.animations {
-                    self.in_animation.apply(elapsed, &mut text);
-                    self.out_animation.apply(remaining, &mut text);
-                }
-                text.paint(painter, max_rect);
-            }
-            elapsed < poison_duration
-        });
-
-        let ice_age_scale = (config.font_size * config.ice_age.scale).min(MAX_FONT_SIZE);
-        let ice_age_duration = base_duration.mul_f32(config.ice_age.duration);
-        if ice_age_duration == Duration::ZERO {
-            self.ice_age.clear();
-        }
-        self.ice_age.retain(|ice_age| {
-            let elapsed = ice_age.elapsed();
-            if let Some((screen_pos, _)) = camera.world_to_screen(ice_age.position()) {
-                let screen_pos = Vec2 {
-                    x: screen_pos.x,
-                    y: screen_pos.y,
-                };
-                let remaining = ice_age_duration.saturating_sub(elapsed);
-                let mut text = Text::new(
-                    ice_age.damage(),
-                    FontId {
-                        family: config.font.clone(),
-                        size: ice_age_scale,
-                    },
-                )
-                .with_shadow(TextShadow::default())
-                .with_pos(screen_pos + vec2(100.0, 0.0) + ice_age.position_offset())
-                .with_pivot(Align2::CENTER_CENTER)
-                .with_color(ice_age.color());
-                if self.config.animations {
-                    self.in_animation.apply(elapsed, &mut text);
-                    self.out_animation.apply(remaining, &mut text);
-                }
-                text.paint(painter, max_rect);
-            }
-            elapsed < ice_age_duration
         });
     }
 

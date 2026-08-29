@@ -11,7 +11,7 @@ use tracing::debug;
 use crate::{
     address::Addresses,
     config::ColorSource,
-    damage::{DamageInstance, DamageSettings},
+    damage::{DamageInstance, PaintSettings},
     plugin::STATE,
 };
 
@@ -40,11 +40,11 @@ pub unsafe extern "C" fn on_quest_update() {
         let defense = monster.defense_multiplier();
         let damage = ((damage_before_defense as f32 * defense) as i16).max(1);
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
-        let settings = DamageSettings::default()
-            .with_color(config.ice_age.color)
-            .with_position_offset(state.ice_age_offset.next());
+        let settings = PaintSettings::default()
+            .with_damage_settings(config.ice_age)
+            .with_position_offset(vec2(100.0, 0.0) + state.ice_age_offset.next());
         let tick = DamageInstance::new(damage, position, &state.num_formatter, settings);
-        state.ice_age.push(tick);
+        state.damage.push(tick);
     }
 }
 
@@ -133,7 +133,7 @@ unsafe extern "cdecl" fn on_hit_finalized(reg: *mut Registers, _: usize) {
             if total_damage == 0 && damage_before_defense > 0 {
                 attack_damage = 1;
             }
-            let attack_settings = DamageSettings::default()
+            let attack_settings = PaintSettings::default()
                 .with_color(color)
                 .with_scale(scale)
                 .with_position_offset(state.hit_offset.next())
@@ -144,12 +144,12 @@ unsafe extern "cdecl" fn on_hit_finalized(reg: *mut Registers, _: usize) {
                 &state.num_formatter,
                 attack_settings,
             );
-            state.hits.push(hit);
+            state.damage.push(hit);
         }
 
         if config.blast_show && blast_damage > 0 {
-            let blast_settings = DamageSettings::default()
-                .with_color(config.blast.color)
+            let blast_settings = PaintSettings::default()
+                .with_damage_settings(config.blast)
                 .with_position_offset(vec2(0.0, -150.0));
             let hit = DamageInstance::new(
                 blast_damage,
@@ -157,7 +157,7 @@ unsafe extern "cdecl" fn on_hit_finalized(reg: *mut Registers, _: usize) {
                 &state.num_formatter,
                 blast_settings,
             );
-            state.hits.push(hit);
+            state.damage.push(hit);
         }
     }
 }
@@ -192,9 +192,11 @@ unsafe extern "cdecl" fn on_poison(reg: *mut Registers, _: usize) {
             return;
         }
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
-        let settings = DamageSettings::default().with_color(config.poison.color);
+        let settings = PaintSettings::default()
+            .with_damage_settings(config.poison)
+            .with_position_offset(vec2(-100.0, 0.0));
         let tick = DamageInstance::new(damage, position, &state.num_formatter, settings);
-        state.poison.push(tick);
+        state.damage.push(tick);
     }
 }
 
@@ -224,12 +226,9 @@ unsafe extern "cdecl" fn on_secret_tech(reg: *mut Registers, _: usize) {
         let new_health = (*reg).eax;
         let damage = old_health - new_health as i16;
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
-        let settings = DamageSettings::default()
-            .with_color(config.secret_tech.color)
-            .with_scale(config.secret_tech.scale)
-            .with_duration_modifier(config.secret_tech.duration);
+        let settings = PaintSettings::default().with_damage_settings(config.secret_tech);
         let tick = DamageInstance::new(damage, position, &state.num_formatter, settings);
-        state.hits.push(tick);
+        state.damage.push(tick);
     }
 }
 
