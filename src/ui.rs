@@ -4,13 +4,18 @@ use bunny_components::{Text, TextShadow};
 use bunny_plugin::{
     GameMode, PluginContext,
     bunny_ui::{
-        Id, Vec2,
+        Id,
+        ROption::RSome,
+        Vec2,
         align::Align2,
         containers::{combo_box::ComboBox, frame::Frame, grid::Grid},
-        paint::text::fonts::FontId,
+        paint::text::{
+            fonts::{FontFamily, FontId},
+            text_layout_types::TextWrapMode,
+        },
         ui::BunnyUi,
         widget_text::RichText,
-        widgets::{button::Button, drag_value::DragValue, separator::Separator},
+        widgets::{button::Button, drag_value::DragValue, separator::Separator, slider::Slider},
     },
 };
 use mhfz_structs::MhfzStructs;
@@ -35,6 +40,7 @@ pub struct State {
     pub out_animation: OutAnimation,
     pub hit_offset: HitOffset,
     pub ice_age_offset: HitOffset,
+    pub misc_offset: HitOffset,
     pub num_formatter: numfmt::Formatter,
     damage_range_update: Option<DamageRangeUpdate>,
 }
@@ -57,6 +63,7 @@ impl State {
             out_animation: Default::default(),
             hit_offset: Default::default(),
             ice_age_offset: Default::default(),
+            misc_offset: Default::default(),
             num_formatter: numfmt::Formatter::new()
                 .separator(',')
                 .unwrap()
@@ -95,8 +102,7 @@ impl<'a> State {
             self.damage_range_update = None;
         }
 
-        Frame::group(ui.style()).show(ui, |ui| {
-            ui.label("General");
+        ui.collapsing("General", |ui| {
             ui.checkbox(&mut config.animations, "Animations");
             ui.checkbox(&mut config.own_attacks_only, "Own attacks only");
             ui.checkbox(
@@ -119,11 +125,11 @@ impl<'a> State {
                 ComboBox::from_id(Id::from_salt("font selection"))
                     .selected_text(config.font.to_string())
                     .show_ui(ui, |ui| {
-                        // Gross!
                         // TODO use the actual font for each option when that becomes available in BunnyUi's RichText
+                        // Gross!
                         for font in ui.fonts().to_vec() {
                             let name = font.to_string();
-                            ui.selectable_value(&mut config.font, font, RichText::new(name));
+                            ui.selectable_value(&mut config.font, font, name);
                         }
                     });
             });
@@ -138,8 +144,7 @@ impl<'a> State {
             });
         });
 
-        Frame::group(ui.style()).show(ui, |ui| {
-            ui.label("Attacks");
+        ui.collapsing("Attacks", |ui| {
             ui.checkbox(&mut config.attacks_show, "Enabled");
             let color_select_resp = ui
                 .horizontal(|ui| {
@@ -161,65 +166,16 @@ impl<'a> State {
 
             ui.add_sized(separator_size, Separator::default());
 
-            ui.collapsing("Damage ranges", |ui| {
-                ui.label("Style by damage range as percentage of target's max hp");
-                ui.label("Targets below 1,000 health are unaffected");
-                let ranges = &mut config.damage_ranges;
-                let limits: Vec<f32> = ranges.iter().skip(1).map(|r| r.damage_percent).collect();
-                let enable_color = config.attack_color_source == ColorSource::Damage;
-                let widget_height = ui.spacing().interact_size.y;
-                let mut low = 0.0;
-
-                for (i, range) in config.damage_ranges.iter_mut().enumerate() {
-                    let limit = limits.get(i).copied().unwrap_or(100.0);
-                    let current_low = low;
-                    low = range.damage_percent;
-                    Frame::group(ui.style()).show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            let prefix = format!("{:.2}-", current_low);
-                            ui.add(
-                                DragValue::new(&mut range.damage_percent)
-                                    .range(current_low as f64..=limit as f64)
-                                    .fixed_decimals(2)
-                                    .speed(0.005)
-                                    .prefix(prefix)
-                                    .suffix("%"),
-                            );
-                        });
-
-                        if enable_color {
-                            range.settings.ui(ui);
-                        } else {
-                            range.settings.ui_disabled_color(ui);
-                        }
-
-                        if ui
-                            .add_sized([50.0, widget_height], Button::new("-"))
-                            .clicked()
-                        {
-                            self.damage_range_update = Some(DamageRangeUpdate::Remove { index: i });
-                        }
-                    });
-                    if ui
-                        .add_sized([50.0, widget_height], Button::new("+"))
-                        .clicked()
-                    {
-                        self.damage_range_update = Some(DamageRangeUpdate::Add { index: i + 1 });
-                    }
-                }
-            });
-
             match config.attack_color_source {
                 ColorSource::Static => {
-                    ui.add_sized(separator_size, Separator::default());
                     ui.horizontal(|ui| {
                         ui.label("Static color:");
                         ui.color_edit_button(&mut config.static_color);
                     });
+                    ui.add_sized(separator_size, Separator::default());
                 }
                 ColorSource::Damage => {}
                 ColorSource::Part => {
-                    ui.add_sized(separator_size, Separator::default());
                     ui.label("Parts");
                     Grid::new(Id::from_salt("Part color grid")).show(ui, |ui| {
                         let (lower, higher) = config.part_hzv_colors.split_at_mut(4);
@@ -235,9 +191,9 @@ impl<'a> State {
                             ui.end_row();
                         }
                     });
+                    ui.add_sized(separator_size, Separator::default());
                 }
                 ColorSource::Hzv => {
-                    ui.add_sized(separator_size, Separator::default());
                     ui.label("HZVs");
                     Grid::new(Id::from_salt("HZV color grid")).show(ui, |ui| {
                         let (lower, higher) = config.part_hzv_colors.split_at_mut(4);
@@ -253,36 +209,84 @@ impl<'a> State {
                             ui.end_row();
                         }
                     });
+                    ui.add_sized(separator_size, Separator::default());
+                }
+            }
+
+            ui.label("Styles based on % of max hp the attack dealt");
+            ui.label("Highest % used for low health targets (max hp<1,000):");
+            ui.add(
+                Slider::new(&mut config.max_range_under_thousand_hp, 0.01..=100.0)
+                    .fixed_decimals(2)
+                    .suffix("%"),
+            );
+
+            let ranges = &mut config.damage_ranges;
+            let limits: Vec<f32> = ranges.iter().skip(1).map(|r| r.damage_percent).collect();
+            let enable_color = config.attack_color_source == ColorSource::Damage;
+            let widget_height = ui.spacing().interact_size.y;
+            let mut low = 0.0;
+
+            for (i, range) in config.damage_ranges.iter_mut().enumerate() {
+                let limit = limits.get(i).copied().unwrap_or(100.0);
+                let current_low = low;
+                low = range.damage_percent;
+                Frame::group(ui.style()).show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        let prefix = format!("{:.2}-", current_low);
+                        ui.add(
+                            DragValue::new(&mut range.damage_percent)
+                                .range(current_low as f64..=limit as f64)
+                                .fixed_decimals(2)
+                                .speed(0.005)
+                                .prefix(prefix)
+                                .suffix("%"),
+                        );
+                        ui.add_space(10.0);
+                        if ui
+                            .add_sized([30.0, widget_height], Button::new("-"))
+                            .clicked()
+                        {
+                            self.damage_range_update = Some(DamageRangeUpdate::Remove { index: i });
+                        }
+                    });
+
+                    if enable_color {
+                        range.settings.ui(ui);
+                    } else {
+                        range.settings.ui_disabled_color(ui);
+                    }
+                });
+                if ui
+                    .add_sized([50.0, widget_height], Button::new("+"))
+                    .clicked()
+                {
+                    self.damage_range_update = Some(DamageRangeUpdate::Add { index: i + 1 });
                 }
             }
         });
 
-        Frame::group(ui.style()).show(ui, |ui| {
-            ui.label("Poison");
+        ui.collapsing("Poison", |ui| {
             ui.checkbox(&mut config.poison_show, "Enabled");
             config.poison.ui(ui);
         });
 
-        Frame::group(ui.style()).show(ui, |ui| {
-            ui.label("Ice Age");
+        ui.collapsing("Ice Age", |ui| {
             ui.checkbox(&mut config.ice_age_show, "Enabled");
             config.ice_age.ui(ui);
         });
 
-        Frame::group(ui.style()).show(ui, |ui| {
-            ui.label("Secret Tech");
+        ui.collapsing("Secret Tech", |ui| {
             ui.checkbox(&mut config.secret_tech_show, "Enabled");
             config.secret_tech.ui(ui);
         });
 
-        Frame::group(ui.style()).show(ui, |ui| {
-            ui.label("Hexaflash");
+        ui.collapsing("Hexaflash", |ui| {
             ui.checkbox(&mut config.hexaflash_show, "Enabled");
             config.hexaflash.ui(ui);
         });
 
-        Frame::group(ui.style()).show(ui, |ui| {
-            ui.label("Misc environmental");
+        ui.collapsing("Misc environmental", |ui| {
             ui.checkbox(&mut config.misc_show, "Enabled");
             config.misc.ui(ui);
         });

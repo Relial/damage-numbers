@@ -85,7 +85,10 @@ unsafe extern "cdecl" fn on_hit_finalized(reg: *mut Registers, _: usize) {
         let defense = monster.defense_multiplier();
         let hit_damage = (damage_before_defense as f32 * defense) as i16;
         let max_health = monster.max_health();
-        let portion_of_max = hit_damage as f32 / max_health as f32;
+        let mut portion_of_max = hit_damage as f32 / max_health as f32;
+        if max_health < 1000 {
+            portion_of_max = portion_of_max.min(config.max_range_under_thousand_hp / 100.0);
+        }
         let range = config.get_range(portion_of_max);
         let mut hit_position = attack.hit_position();
 
@@ -174,12 +177,12 @@ unsafe extern "cdecl" fn on_poison(reg: *mut Registers, _: usize) {
     unsafe {
         let state = STATE.get_unchecked_mut();
         let config = &state.config;
-        let Some(player_info) = state.structs.player_info() else {
-            return;
-        };
         if !config.poison_show {
             return;
         }
+        let Some(player_info) = state.structs.player_info() else {
+            return;
+        };
         let monster = state.structs.monster_from_ptr((*reg).esi as *mut u8);
         if monster.area() != player_info.area() {
             return;
@@ -195,8 +198,8 @@ unsafe extern "cdecl" fn on_poison(reg: *mut Registers, _: usize) {
         let settings = PaintSettings::default()
             .with_damage_settings(config.poison)
             .with_position_offset(vec2(-100.0, 0.0));
-        let tick = DamageInstance::new(damage, position, &state.num_formatter, settings);
-        state.damage.push(tick);
+        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
+        state.damage.push(damage_instance);
     }
 }
 
@@ -212,6 +215,9 @@ unsafe extern "cdecl" fn on_secret_tech(reg: *mut Registers, _: usize) {
     unsafe {
         let state = STATE.get_unchecked_mut();
         let config = &state.config;
+        if !config.secret_tech_show {
+            return;
+        }
         let Some(player_info) = state.structs.player_info() else {
             return;
         };
@@ -225,10 +231,13 @@ unsafe extern "cdecl" fn on_secret_tech(reg: *mut Registers, _: usize) {
         let old_health = monster.health();
         let new_health = (*reg).eax;
         let damage = old_health - new_health as i16;
+        if damage < 1 {
+            return;
+        }
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::default().with_damage_settings(config.secret_tech);
-        let tick = DamageInstance::new(damage, position, &state.num_formatter, settings);
-        state.damage.push(tick);
+        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
+        state.damage.push(damage_instance);
     }
 }
 
@@ -240,10 +249,294 @@ fn hook_secret_tech(addresses: &Addresses) -> Result<NoCbHookPoint> {
     Ok(hook_point)
 }
 
+unsafe extern "cdecl" fn on_mudslide(reg: *mut Registers, _: usize) {
+    unsafe {
+        let state = STATE.get_unchecked_mut();
+        let config = &state.config;
+        if !config.misc_show {
+            return;
+        }
+        let Some(player_info) = state.structs.player_info() else {
+            return;
+        };
+        let monster = state.structs.monster_from_ptr((*reg).ecx as *mut u8);
+        if monster.area() != player_info.area() {
+            return;
+        }
+        if config.hide_damage_on_small_monsters && !monster.is_large() {
+            return;
+        }
+        let old_health = monster.health();
+        let new_health = (*reg).eax;
+        let damage = old_health - new_health as i16;
+        if damage < 1 {
+            return;
+        }
+        let position = monster.pos() + vec3(0.0, 200.0, 0.0);
+        let settings = PaintSettings::default()
+            .with_damage_settings(config.misc)
+            .with_position_offset(state.misc_offset.next() * 2.0);
+        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
+        state.damage.push(damage_instance);
+    }
+}
+
+fn hook_mudslide(addresses: &Addresses) -> Result<NoCbHookPoint> {
+    let hook_address = addresses.mudslide;
+    let builder = NoCbHookBuilder::new(hook_address, HookType::JmpBack(on_mudslide));
+    let hook_point = unsafe { builder.hook() }?;
+    debug!("Hooked at {:#X}", hook_address);
+    Ok(hook_point)
+}
+
+unsafe extern "cdecl" fn on_stalactite(reg: *mut Registers, _: usize) {
+    unsafe {
+        let state = STATE.get_unchecked_mut();
+        let config = &state.config;
+        if !config.misc_show {
+            return;
+        }
+        let Some(player_info) = state.structs.player_info() else {
+            return;
+        };
+        let monster = state.structs.monster_from_ptr((*reg).esi as *mut u8);
+        if monster.area() != player_info.area() {
+            return;
+        }
+        if config.hide_damage_on_small_monsters && !monster.is_large() {
+            return;
+        }
+        let damage = (*reg).edx as i16;
+        if damage < 1 {
+            return;
+        }
+        let position = monster.pos() + vec3(0.0, 200.0, 0.0);
+        let settings = PaintSettings::default()
+            .with_damage_settings(config.misc)
+            .with_position_offset(state.misc_offset.next() * 2.0);
+        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
+        state.damage.push(damage_instance);
+    }
+}
+
+fn hook_stalactite(addresses: &Addresses) -> Result<NoCbHookPoint> {
+    let hook_address = addresses.stalactite;
+    let builder = NoCbHookBuilder::new(hook_address, HookType::JmpBack(on_stalactite));
+    let hook_point = unsafe { builder.hook() }?;
+    debug!("Hooked at {:#X}", hook_address);
+    Ok(hook_point)
+}
+
+unsafe extern "cdecl" fn on_hexa_general(reg: *mut Registers, _: usize) {
+    unsafe {
+        let state = STATE.get_unchecked_mut();
+        let config = &state.config;
+        if !config.hexaflash_show {
+            return;
+        }
+        let element_idx = (*reg).edi;
+        // Fire and Thunder have their own handling
+        if element_idx == 0 || element_idx == 3 {
+            return;
+        }
+        let Some(player_info) = state.structs.player_info() else {
+            return;
+        };
+        let monster = state.structs.monster_from_ptr((*reg).esi as *mut u8);
+        if monster.area() != player_info.area() {
+            return;
+        }
+        if config.hide_damage_on_small_monsters && !monster.is_large() {
+            return;
+        }
+        let damage = (*reg).eax as i16;
+        if damage < 1 {
+            return;
+        }
+        let Some(settings) = config.hexaflash.settings_from_element_idx(element_idx) else {
+            return;
+        };
+        let position = monster.pos() + vec3(0.0, 200.0, 0.0);
+        let settings = PaintSettings::default().with_damage_settings(settings);
+        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
+        state.damage.push(damage_instance);
+    }
+}
+
+fn hook_hexa_general(addresses: &Addresses) -> Result<NoCbHookPoint> {
+    let hook_address = addresses.hexa_general;
+    let builder = NoCbHookBuilder::new(hook_address, HookType::JmpBack(on_hexa_general));
+    let hook_point = unsafe { builder.hook() }?;
+    debug!("Hooked at {:#X}", hook_address);
+    Ok(hook_point)
+}
+
+unsafe extern "cdecl" fn on_hexa_fire_thunder(reg: *mut Registers, _: usize) {
+    unsafe {
+        let state = STATE.get_unchecked_mut();
+        let config = &state.config;
+        if !config.hexaflash_show {
+            return;
+        }
+        let Some(player_info) = state.structs.player_info() else {
+            return;
+        };
+        let monster = state.structs.monster_from_ptr((*reg).esi as *mut u8);
+        if monster.area() != player_info.area() {
+            return;
+        }
+        if config.hide_damage_on_small_monsters && !monster.is_large() {
+            return;
+        }
+        let damage = (*reg).eax as i16;
+        if damage < 1 {
+            return;
+        }
+        let element_check = (((*reg).ebp + 0xc) as *const u32).read();
+        let settings = if element_check == 3 {
+            config.hexaflash.thunder
+        } else if element_check == 0x1a {
+            config.hexaflash.fire
+        } else {
+            return;
+        };
+        let position = monster.pos() + vec3(0.0, 200.0, 0.0);
+        let settings = PaintSettings::default().with_damage_settings(settings);
+        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
+        state.damage.push(damage_instance);
+    }
+}
+
+fn hook_hexa_fire_thunder(addresses: &Addresses) -> Result<NoCbHookPoint> {
+    let hook_address = addresses.hexa_fire_thunder;
+    let builder = NoCbHookBuilder::new(hook_address, HookType::JmpBack(on_hexa_fire_thunder));
+    let hook_point = unsafe { builder.hook() }?;
+    debug!("Hooked at {:#X}", hook_address);
+    Ok(hook_point)
+}
+
+unsafe extern "cdecl" fn on_hexa_post_fire(reg: *mut Registers, _: usize) {
+    unsafe {
+        let state = STATE.get_unchecked_mut();
+        let config = &state.config;
+        if !config.hexaflash_show {
+            return;
+        }
+        let Some(player_info) = state.structs.player_info() else {
+            return;
+        };
+        let monster = state.structs.monster_from_ptr((*reg).esi as *mut u8);
+        if monster.area() != player_info.area() {
+            return;
+        }
+        if config.hide_damage_on_small_monsters && !monster.is_large() {
+            return;
+        }
+        let damage = (*reg).edx as i16;
+        if damage < 1 {
+            return;
+        }
+        let settings = config.hexaflash.fire;
+        let position = monster.pos() + vec3(0.0, 200.0, 0.0);
+        let settings = PaintSettings::default().with_damage_settings(settings);
+        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
+        state.damage.push(damage_instance);
+    }
+}
+
+fn hook_hexa_post_fire(addresses: &Addresses) -> Result<NoCbHookPoint> {
+    let hook_address = addresses.hexa_post_fire;
+    let builder = NoCbHookBuilder::new(hook_address, HookType::JmpBack(on_hexa_post_fire));
+    let hook_point = unsafe { builder.hook() }?;
+    debug!("Hooked at {:#X}", hook_address);
+    Ok(hook_point)
+}
+
+unsafe extern "cdecl" fn on_hexa_post_thunder(reg: *mut Registers, _: usize) {
+    unsafe {
+        let state = STATE.get_unchecked_mut();
+        let config = &state.config;
+        if !config.hexaflash_show {
+            return;
+        }
+        let Some(player_info) = state.structs.player_info() else {
+            return;
+        };
+        let monster = state.structs.monster_from_ptr((*reg).edi as *mut u8);
+        if monster.area() != player_info.area() {
+            return;
+        }
+        if config.hide_damage_on_small_monsters && !monster.is_large() {
+            return;
+        }
+        let damage = (*reg).eax as i16;
+        if damage < 1 {
+            return;
+        }
+        let settings = config.hexaflash.thunder;
+        let position = monster.pos() + vec3(0.0, 200.0, 0.0);
+        let settings = PaintSettings::default().with_damage_settings(settings);
+        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
+        state.damage.push(damage_instance);
+    }
+}
+
+fn hook_hexa_post_thunder(addresses: &Addresses) -> Result<NoCbHookPoint> {
+    let hook_address = addresses.hexa_post_thunder;
+    let builder = NoCbHookBuilder::new(hook_address, HookType::JmpBack(on_hexa_post_thunder));
+    let hook_point = unsafe { builder.hook() }?;
+    debug!("Hooked at {:#X}", hook_address);
+    Ok(hook_point)
+}
+
+unsafe extern "cdecl" fn on_hexa_post_raw(reg: *mut Registers, _: usize) {
+    unsafe {
+        let state = STATE.get_unchecked_mut();
+        let config = &state.config;
+        if !config.hexaflash_show {
+            return;
+        }
+        let Some(player_info) = state.structs.player_info() else {
+            return;
+        };
+        let monster = state.structs.monster_from_ptr((*reg).esi as *mut u8);
+        if monster.area() != player_info.area() {
+            return;
+        }
+        if config.hide_damage_on_small_monsters && !monster.is_large() {
+            return;
+        }
+        let damage = (*reg).edi as i16;
+        if damage < 1 {
+            return;
+        }
+        let settings = config.hexaflash.raw;
+        let position = monster.pos() + vec3(0.0, 200.0, 0.0);
+        let settings = PaintSettings::default().with_damage_settings(settings);
+        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
+        state.damage.push(damage_instance);
+    }
+}
+
+fn hook_hexa_post_raw(addresses: &Addresses) -> Result<NoCbHookPoint> {
+    let hook_address = addresses.hexa_post_raw;
+    let builder = NoCbHookBuilder::new(hook_address, HookType::JmpBack(on_hexa_post_raw));
+    let hook_point = unsafe { builder.hook() }?;
+    debug!("Hooked at {:#X}", hook_address);
+    Ok(hook_point)
+}
+
 pub fn init(addresses: &Addresses) -> Result<Vec<NoCbHookPoint>> {
     Ok(vec![
         hook_hit_finalized(addresses)?,
         hook_poison(addresses)?,
         hook_secret_tech(addresses)?,
+        hook_mudslide(addresses)?,
+        hook_stalactite(addresses)?,
+        hook_hexa_general(addresses)?,
+        hook_hexa_fire_thunder(addresses)?,
+        hook_hexa_post_fire(addresses)?,
+        hook_hexa_post_thunder(addresses)?,
+        hook_hexa_post_raw(addresses)?,
     ])
 }

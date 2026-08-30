@@ -25,6 +25,7 @@ pub struct Config {
     pub font_size: f32,
     pub attacks_show: bool,
     pub hide_damage_on_small_monsters: bool,
+    pub max_range_under_thousand_hp: f32,
     pub own_attacks_only: bool,
     pub hide_halk_attacks: bool,
     pub attack_color_source: ColorSource,
@@ -48,12 +49,13 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            base_duration_secs: 2.0,
+            base_duration_secs: 1.5,
             animations: true,
-            font: FontFamily::Name("NotoSansJP-Regular".into()),
+            font: FontFamily::Name("Toronto-Regular".into()),
             font_size: 40.0,
             attacks_show: true,
             hide_damage_on_small_monsters: false,
+            max_range_under_thousand_hp: 1.0,
             own_attacks_only: false,
             hide_halk_attacks: false,
             attack_color_source: Default::default(),
@@ -64,7 +66,7 @@ impl Default for Config {
                     settings: DamageSettings {
                         color: Color32::GRAY,
                         scale: 0.6,
-                        duration: 0.4,
+                        duration: 0.6,
                     },
                 },
                 DamageRange {
@@ -120,7 +122,7 @@ impl Default for Config {
             ice_age: DamageSettings {
                 color: Color32::LIGHT_BLUE,
                 scale: 0.6,
-                duration: 0.4,
+                duration: 0.6,
             },
             blast_show: true,
             blast: DamageSettings {
@@ -266,6 +268,18 @@ impl Hexaflash {
         ui.add_sized(separator_size, Separator::default());
         ui.colored_label(self.raw.color, "Raw");
         self.raw.ui(ui);
+    }
+
+    pub fn settings_from_element_idx(&self, element_idx: u32) -> Option<DamageSettings> {
+        match element_idx {
+            0 => Some(self.fire),
+            1 => Some(self.water),
+            2 => Some(self.ice),
+            3 => Some(self.thunder),
+            4 => Some(self.dragon),
+            5 => Some(self.raw),
+            _ => None,
+        }
     }
 }
 
