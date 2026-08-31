@@ -30,7 +30,18 @@ impl Addresses {
                 hexa_post_thunder: dll + 0x13ceb43,
                 hexa_post_raw: dll + 0x13cecab,
             },
-            GameMode::HighGrade => todo!(),
+            GameMode::HighGrade => Self {
+                hit_finalized: dll + 0x8c07fb,
+                poison: dll + 0x83fc4b,
+                secret_tech: dll + 0x13141a0,
+                mudslide: dll + 0x123a53d,
+                stalactite: dll + 0x8c04e8,
+                hexa_general: dll + 0x13f2b01,
+                hexa_fire_thunder: dll + 0x13f2c9e,
+                hexa_post_fire: dll + 0x13f3a78,
+                hexa_post_thunder: dll + 0x13f3da3,
+                hexa_post_raw: dll + 0x13f3f0b,
+            },
         }
     }
 }
