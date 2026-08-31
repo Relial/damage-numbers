@@ -50,8 +50,7 @@ impl State {
         let config_path = context
             .config_dir()
             .join(format!("{}.toml", env!("CARGO_PKG_NAME")));
-        // let config = Config::load(&config_path).unwrap_or_default();
-        let config = Config::default();
+        let config = Config::load(&config_path).unwrap_or_default();
         let info = context.mhfo_info();
         let structs = MhfzStructs::new(info.address, info.game_mode == GameMode::HighGrade);
         Self {
@@ -318,10 +317,12 @@ impl<'a> State {
                         size: (config.font_size * damage_instance.scale()).min(MAX_FONT_SIZE),
                     },
                 )
-                .with_shadow(TextShadow::default())
                 .with_pos(screen_pos + damage_instance.position_offset())
                 .with_pivot(Align2::CENTER_CENTER)
                 .with_color(damage_instance.color());
+                if let Some(shadow) = damage_instance.shadow() {
+                    text = text.with_shadow(shadow);
+                }
                 if self.config.animations {
                     self.in_animation.apply(elapsed, &mut text);
                     self.out_animation.apply(remaining, &mut text);

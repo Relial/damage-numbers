@@ -1,9 +1,10 @@
 use std::time::{Duration, Instant};
 
+use bunny_components::TextShadow;
 use bunny_plugin::bunny_ui::{Color32, Vec2, vec2};
 use glam::Vec3;
 
-use crate::config::DamageSettings;
+use crate::config::{DamageSettings, Shadow};
 
 pub const OFFSET_SEQUENCE: [Vec2; 8] = [
     vec2(0.0, 0.0),
@@ -83,6 +84,12 @@ impl DamageInstance {
     pub fn duration_modifier(&self) -> f32 {
         self.damage_settings.duration_modifier
     }
+
+    #[inline]
+    pub fn shadow(&self) -> Option<TextShadow> {
+        let shadow = &self.damage_settings.shadow;
+        shadow.enabled.then_some(shadow.text_shadow)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -91,6 +98,7 @@ pub struct PaintSettings {
     pub color: Color32,
     pub scale: f32,
     pub duration_modifier: f32,
+    pub shadow: Shadow,
 }
 
 impl Default for PaintSettings {
@@ -100,11 +108,29 @@ impl Default for PaintSettings {
             color: Color32::LIGHT_YELLOW,
             scale: 1.0,
             duration_modifier: 1.0,
+            shadow: Default::default(),
         }
     }
 }
 
 impl PaintSettings {
+    #[inline]
+    pub fn from_damage_settings(damage_settings: DamageSettings) -> Self {
+        let DamageSettings {
+            color,
+            scale,
+            duration,
+            shadow,
+        } = damage_settings;
+        Self {
+            position_offset: Vec2::ZERO,
+            color,
+            scale,
+            duration_modifier: duration,
+            shadow,
+        }
+    }
+
     #[inline]
     pub fn with_position_offset(mut self, position_offset: Vec2) -> Self {
         self.position_offset = position_offset;
@@ -130,15 +156,8 @@ impl PaintSettings {
     }
 
     #[inline]
-    pub fn with_damage_settings(mut self, damage_settings: DamageSettings) -> Self {
-        let DamageSettings {
-            color,
-            scale,
-            duration,
-        } = damage_settings;
-        self.color = color;
-        self.scale = scale;
-        self.duration_modifier = duration;
+    pub fn with_shadow(mut self, shadow: Shadow) -> Self {
+        self.shadow = shadow;
         self
     }
 }

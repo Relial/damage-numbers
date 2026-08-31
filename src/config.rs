@@ -1,8 +1,10 @@
 use std::path::Path;
 
 use anyhow::Result;
+use bunny_components::{EditMenu, TextShadow};
 use bunny_plugin::bunny_ui::{
     Color32,
+    containers::collapsing_header::CollapsingHeader,
     paint::text::fonts::FontFamily,
     ui::BunnyUi,
     vec2,
@@ -67,6 +69,7 @@ impl Default for Config {
                         color: Color32::GRAY,
                         scale: 0.6,
                         duration: 0.6,
+                        shadow: Default::default(),
                     },
                 },
                 DamageRange {
@@ -75,6 +78,7 @@ impl Default for Config {
                         color: Color32::LIGHT_YELLOW,
                         scale: 1.0,
                         duration: 1.0,
+                        shadow: Default::default(),
                     },
                 },
                 DamageRange {
@@ -83,6 +87,7 @@ impl Default for Config {
                         color: Color32::YELLOW,
                         scale: 1.2,
                         duration: 1.2,
+                        shadow: Default::default(),
                     },
                 },
                 DamageRange {
@@ -91,6 +96,7 @@ impl Default for Config {
                         color: Color32::LIGHT_RED,
                         scale: 2.0,
                         duration: 1.5,
+                        shadow: Default::default(),
                     },
                 },
                 DamageRange {
@@ -99,6 +105,7 @@ impl Default for Config {
                         color: Color32::RED,
                         scale: 4.0,
                         duration: 2.0,
+                        shadow: Default::default(),
                     },
                 },
             ],
@@ -117,24 +124,28 @@ impl Default for Config {
                 color: Color32::from_rgb(255, 63, 208),
                 scale: 1.0,
                 duration: 1.0,
+                shadow: Default::default(),
             },
             ice_age_show: true,
             ice_age: DamageSettings {
                 color: Color32::LIGHT_BLUE,
                 scale: 0.6,
                 duration: 0.6,
+                shadow: Default::default(),
             },
             blast_show: true,
             blast: DamageSettings {
                 color: Color32::ORANGE,
                 scale: 1.0,
                 duration: 1.0,
+                shadow: Default::default(),
             },
             secret_tech_show: true,
             secret_tech: DamageSettings {
                 color: Color32::RED,
                 scale: 4.0,
                 duration: 2.0,
+                shadow: Default::default(),
             },
             hexaflash_show: true,
             hexaflash: Default::default(),
@@ -143,6 +154,7 @@ impl Default for Config {
                 color: Color32::LIGHT_YELLOW,
                 scale: 2.0,
                 duration: 1.5,
+                shadow: Default::default(),
             },
         }
     }
@@ -218,31 +230,37 @@ impl Default for Hexaflash {
                 color: FIRE,
                 scale: 1.2,
                 duration: 1.2,
+                shadow: Default::default(),
             },
             water: DamageSettings {
                 color: WATER,
                 scale: 2.0,
                 duration: 1.5,
+                shadow: Default::default(),
             },
             ice: DamageSettings {
                 color: ICE,
                 scale: 2.0,
                 duration: 1.5,
+                shadow: Default::default(),
             },
             thunder: DamageSettings {
                 color: THUNDER,
                 scale: 1.0,
                 duration: 1.0,
+                shadow: Default::default(),
             },
             dragon: DamageSettings {
                 color: DRAGON,
                 scale: 2.0,
                 duration: 1.5,
+                shadow: Default::default(),
             },
             raw: DamageSettings {
                 color: Color32::WHITE,
                 scale: 1.2,
                 duration: 1.2,
+                shadow: Default::default(),
             },
         }
     }
@@ -288,6 +306,7 @@ pub struct DamageSettings {
     pub color: Color32,
     pub scale: f32,
     pub duration: f32,
+    pub shadow: Shadow,
 }
 
 impl Default for DamageSettings {
@@ -296,6 +315,7 @@ impl Default for DamageSettings {
             color: Color32::LIGHT_YELLOW,
             scale: 1.0,
             duration: 1.0,
+            shadow: Default::default(),
         }
     }
 }
@@ -326,6 +346,19 @@ impl DamageSettings {
                     .suffix("x"),
             );
         });
+        CollapsingHeader::new("Shadow")
+            .id(ui.next_id())
+            .show(ui, |ui| {
+                ui.checkbox(&mut self.shadow.enabled, "Enabled");
+                ui.horizontal(|ui| {
+                    ui.label("Color:");
+                    ui.color_edit_button(&mut self.shadow.text_shadow.color);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Offset:");
+                    self.shadow.text_shadow.offset.edit_menu(ui);
+                });
+            });
     }
 
     pub fn ui_disabled_color<'a>(&'a mut self, ui: &mut BunnyUi<'a>) {
@@ -354,5 +387,33 @@ impl DamageSettings {
                     .suffix("x"),
             );
         });
+        CollapsingHeader::new("Shadow")
+            .id(ui.next_id())
+            .show(ui, |ui| {
+                ui.checkbox(&mut self.shadow.enabled, "Enabled");
+                ui.horizontal(|ui| {
+                    ui.label("Color:");
+                    ui.color_edit_button(&mut self.shadow.text_shadow.color);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Offset:");
+                    self.shadow.text_shadow.offset.edit_menu(ui);
+                });
+            });
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Shadow {
+    pub enabled: bool,
+    pub text_shadow: TextShadow,
+}
+
+impl Default for Shadow {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            text_shadow: Default::default(),
+        }
     }
 }

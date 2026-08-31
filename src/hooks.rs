@@ -10,7 +10,7 @@ use tracing::debug;
 
 use crate::{
     address::Addresses,
-    config::ColorSource,
+    config::{ColorSource, Shadow},
     damage::{DamageInstance, PaintSettings},
     plugin::STATE,
 };
@@ -40,8 +40,7 @@ pub unsafe extern "C" fn on_quest_update() {
         let defense = monster.defense_multiplier();
         let damage = ((damage_before_defense as f32 * defense) as i16).max(1);
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
-        let settings = PaintSettings::default()
-            .with_damage_settings(config.ice_age)
+        let settings = PaintSettings::from_damage_settings(config.ice_age)
             .with_position_offset(vec2(100.0, 0.0) + state.ice_age_offset.next());
         let tick = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(tick);
@@ -117,8 +116,10 @@ unsafe extern "cdecl" fn on_hit_finalized(reg: *mut Registers, _: usize) {
             }
         };
 
-        let (scale, duration_mod) =
-            range.map_or((1.0, 1.0), |r| (r.settings.scale, r.settings.duration));
+        let (scale, duration_mod, shadow) = range.map_or_else(
+            || (1.0, 1.0, Shadow::default()),
+            |r| (r.settings.scale, r.settings.duration, r.settings.shadow),
+        );
 
         let blast_damage = {
             // Blast should only trigger on the part we're hitting, but this is cheap so check just in case
@@ -140,7 +141,8 @@ unsafe extern "cdecl" fn on_hit_finalized(reg: *mut Registers, _: usize) {
                 .with_color(color)
                 .with_scale(scale)
                 .with_position_offset(state.hit_offset.next())
-                .with_duration_modifier(duration_mod);
+                .with_duration_modifier(duration_mod)
+                .with_shadow(shadow);
             let hit = DamageInstance::new(
                 attack_damage,
                 hit_position,
@@ -151,8 +153,7 @@ unsafe extern "cdecl" fn on_hit_finalized(reg: *mut Registers, _: usize) {
         }
 
         if config.blast_show && blast_damage > 0 {
-            let blast_settings = PaintSettings::default()
-                .with_damage_settings(config.blast)
+            let blast_settings = PaintSettings::from_damage_settings(config.blast)
                 .with_position_offset(vec2(0.0, -150.0));
             let hit = DamageInstance::new(
                 blast_damage,
@@ -195,8 +196,7 @@ unsafe extern "cdecl" fn on_poison(reg: *mut Registers, _: usize) {
             return;
         }
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
-        let settings = PaintSettings::default()
-            .with_damage_settings(config.poison)
+        let settings = PaintSettings::from_damage_settings(config.poison)
             .with_position_offset(vec2(-100.0, 0.0));
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
@@ -235,7 +235,7 @@ unsafe extern "cdecl" fn on_secret_tech(reg: *mut Registers, _: usize) {
             return;
         }
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
-        let settings = PaintSettings::default().with_damage_settings(config.secret_tech);
+        let settings = PaintSettings::from_damage_settings(config.secret_tech);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
     }
@@ -273,8 +273,7 @@ unsafe extern "cdecl" fn on_mudslide(reg: *mut Registers, _: usize) {
             return;
         }
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
-        let settings = PaintSettings::default()
-            .with_damage_settings(config.misc)
+        let settings = PaintSettings::from_damage_settings(config.misc)
             .with_position_offset(state.misc_offset.next() * 2.0);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
@@ -311,8 +310,7 @@ unsafe extern "cdecl" fn on_stalactite(reg: *mut Registers, _: usize) {
             return;
         }
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
-        let settings = PaintSettings::default()
-            .with_damage_settings(config.misc)
+        let settings = PaintSettings::from_damage_settings(config.misc)
             .with_position_offset(state.misc_offset.next() * 2.0);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
@@ -357,7 +355,7 @@ unsafe extern "cdecl" fn on_hexa_general(reg: *mut Registers, _: usize) {
             return;
         };
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
-        let settings = PaintSettings::default().with_damage_settings(settings);
+        let settings = PaintSettings::from_damage_settings(settings);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
     }
@@ -401,7 +399,7 @@ unsafe extern "cdecl" fn on_hexa_fire_thunder(reg: *mut Registers, _: usize) {
             return;
         };
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
-        let settings = PaintSettings::default().with_damage_settings(settings);
+        let settings = PaintSettings::from_damage_settings(settings);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
     }
@@ -438,7 +436,7 @@ unsafe extern "cdecl" fn on_hexa_post_fire(reg: *mut Registers, _: usize) {
         }
         let settings = config.hexaflash.fire;
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
-        let settings = PaintSettings::default().with_damage_settings(settings);
+        let settings = PaintSettings::from_damage_settings(settings);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
     }
@@ -475,7 +473,7 @@ unsafe extern "cdecl" fn on_hexa_post_thunder(reg: *mut Registers, _: usize) {
         }
         let settings = config.hexaflash.thunder;
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
-        let settings = PaintSettings::default().with_damage_settings(settings);
+        let settings = PaintSettings::from_damage_settings(settings);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
     }
@@ -512,7 +510,7 @@ unsafe extern "cdecl" fn on_hexa_post_raw(reg: *mut Registers, _: usize) {
         }
         let settings = config.hexaflash.raw;
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
-        let settings = PaintSettings::default().with_damage_settings(settings);
+        let settings = PaintSettings::from_damage_settings(settings);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
     }
