@@ -13,6 +13,7 @@ use crate::{
     config::{ColorSource, Shadow},
     damage::{DamageInstance, PaintSettings},
     plugin::STATE,
+    scrolling_text::ScrollingTextEntry,
 };
 
 pub unsafe extern "C" fn on_quest_update() {
@@ -44,6 +45,13 @@ pub unsafe extern "C" fn on_quest_update() {
             .with_position_offset(vec2(100.0, 0.0) + state.ice_age_offset.next());
         let tick = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(tick);
+
+        if config.scrolling_text.enabled {
+            let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
+            state
+                .scrolling_text
+                .add(entry, config.scrolling_text.font_size);
+        }
     }
 }
 
@@ -150,6 +158,17 @@ unsafe extern "cdecl" fn on_hit_finalized(reg: *mut Registers, _: usize) {
                 attack_settings,
             );
             state.damage.push(hit);
+
+            if config.scrolling_text.enabled {
+                let entry = ScrollingTextEntry::new(
+                    attack_damage,
+                    attack_settings.color,
+                    &state.num_formatter,
+                );
+                state
+                    .scrolling_text
+                    .add(entry, config.scrolling_text.font_size);
+            }
         }
 
         if config.blast_show && blast_damage > 0 {
@@ -162,6 +181,17 @@ unsafe extern "cdecl" fn on_hit_finalized(reg: *mut Registers, _: usize) {
                 blast_settings,
             );
             state.damage.push(hit);
+
+            if config.scrolling_text.enabled {
+                let entry = ScrollingTextEntry::new(
+                    blast_damage,
+                    blast_settings.color,
+                    &state.num_formatter,
+                );
+                state
+                    .scrolling_text
+                    .add(entry, config.scrolling_text.font_size);
+            }
         }
     }
 }
@@ -200,6 +230,13 @@ unsafe extern "cdecl" fn on_poison(reg: *mut Registers, _: usize) {
             .with_position_offset(vec2(-100.0, 0.0));
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
+
+        if config.scrolling_text.enabled {
+            let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
+            state
+                .scrolling_text
+                .add(entry, config.scrolling_text.font_size);
+        }
     }
 }
 
@@ -238,6 +275,13 @@ unsafe extern "cdecl" fn on_secret_tech(reg: *mut Registers, _: usize) {
         let settings = PaintSettings::from_damage_settings(config.secret_tech);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
+
+        if config.scrolling_text.enabled {
+            let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
+            state
+                .scrolling_text
+                .add(entry, config.scrolling_text.font_size);
+        }
     }
 }
 
@@ -277,6 +321,13 @@ unsafe extern "cdecl" fn on_mudslide(reg: *mut Registers, _: usize) {
             .with_position_offset(state.misc_offset.next() * 2.0);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
+
+        if config.scrolling_text.enabled {
+            let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
+            state
+                .scrolling_text
+                .add(entry, config.scrolling_text.font_size);
+        }
     }
 }
 
@@ -314,6 +365,13 @@ unsafe extern "cdecl" fn on_stalactite(reg: *mut Registers, _: usize) {
             .with_position_offset(state.misc_offset.next() * 2.0);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
+
+        if config.scrolling_text.enabled {
+            let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
+            state
+                .scrolling_text
+                .add(entry, config.scrolling_text.font_size);
+        }
     }
 }
 
@@ -358,6 +416,13 @@ unsafe extern "cdecl" fn on_hexa_general(reg: *mut Registers, _: usize) {
         let settings = PaintSettings::from_damage_settings(settings);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
+
+        if config.scrolling_text.enabled {
+            let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
+            state
+                .scrolling_text
+                .add(entry, config.scrolling_text.font_size);
+        }
     }
 }
 
@@ -402,6 +467,13 @@ unsafe extern "cdecl" fn on_hexa_fire_thunder(reg: *mut Registers, _: usize) {
         let settings = PaintSettings::from_damage_settings(settings);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
+
+        if config.scrolling_text.enabled {
+            let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
+            state
+                .scrolling_text
+                .add(entry, config.scrolling_text.font_size);
+        }
     }
 }
 
@@ -439,6 +511,13 @@ unsafe extern "cdecl" fn on_hexa_post_fire(reg: *mut Registers, _: usize) {
         let settings = PaintSettings::from_damage_settings(settings);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
+
+        if config.scrolling_text.enabled {
+            let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
+            state
+                .scrolling_text
+                .add(entry, config.scrolling_text.font_size);
+        }
     }
 }
 
@@ -476,6 +555,13 @@ unsafe extern "cdecl" fn on_hexa_post_thunder(reg: *mut Registers, _: usize) {
         let settings = PaintSettings::from_damage_settings(settings);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
+
+        if config.scrolling_text.enabled {
+            let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
+            state
+                .scrolling_text
+                .add(entry, config.scrolling_text.font_size);
+        }
     }
 }
 
@@ -513,6 +599,13 @@ unsafe extern "cdecl" fn on_hexa_post_raw(reg: *mut Registers, _: usize) {
         let settings = PaintSettings::from_damage_settings(settings);
         let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
         state.damage.push(damage_instance);
+
+        if config.scrolling_text.enabled {
+            let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
+            state
+                .scrolling_text
+                .add(entry, config.scrolling_text.font_size);
+        }
     }
 }
 

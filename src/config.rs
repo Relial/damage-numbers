@@ -13,6 +13,8 @@ use bunny_plugin::bunny_ui::{
 use serde::{Deserialize, Serialize};
 use strum::EnumIter;
 
+use crate::scrolling_text::ScrollingTextConfig;
+
 const FIRE: Color32 = Color32::from_rgb(255, 72, 2);
 const WATER: Color32 = Color32::from_rgb(146, 235, 255);
 const ICE: Color32 = Color32::from_rgb(173, 206, 247);
@@ -21,7 +23,7 @@ const DRAGON: Color32 = Color32::from_rgb(107, 114, 182);
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Config {
-    pub base_duration_secs: f32,
+    pub base_duration_seconds: f32,
     pub animations: bool,
     pub font: FontFamily,
     pub font_size: f32,
@@ -46,12 +48,13 @@ pub struct Config {
     pub hexaflash: Hexaflash,
     pub misc_show: bool,
     pub misc: DamageSettings,
+    pub scrolling_text: ScrollingTextConfig,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            base_duration_secs: 1.5,
+            base_duration_seconds: 1.5,
             animations: true,
             font: FontFamily::Name("Toronto-Regular".into()),
             font_size: 40.0,
@@ -67,8 +70,8 @@ impl Default for Config {
                     damage_percent: 0.03,
                     settings: DamageSettings {
                         color: Color32::GRAY,
-                        scale: 0.6,
-                        duration: 0.6,
+                        scale: 0.7,
+                        duration: 0.7,
                         shadow: Default::default(),
                     },
                 },
@@ -156,6 +159,7 @@ impl Default for Config {
                 duration: 1.5,
                 shadow: Default::default(),
             },
+            scrolling_text: Default::default(),
         }
     }
 }

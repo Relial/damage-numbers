@@ -15,6 +15,7 @@ mod damage;
 mod hooks;
 mod plugin;
 mod ui;
+mod scrolling_text;
 
 #[unsafe(no_mangle)]
 extern "system" fn DllMain(hinst: HINSTANCE, fdw_reason: u32, lpv_reserved: *mut ()) -> bool {

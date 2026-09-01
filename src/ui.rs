@@ -1,20 +1,14 @@
 use std::{path::PathBuf, time::Duration};
 
-use bunny_components::{Text, TextShadow};
+use bunny_components::Text;
 use bunny_plugin::{
     GameMode, PluginContext,
     bunny_ui::{
-        Id,
-        ROption::RSome,
-        Vec2,
+        Color32, Id, Vec2,
         align::Align2,
         containers::{combo_box::ComboBox, frame::Frame, grid::Grid},
-        paint::text::{
-            fonts::{FontFamily, FontId},
-            text_layout_types::TextWrapMode,
-        },
+        paint::text::fonts::{FontFamily, FontId},
         ui::BunnyUi,
-        widget_text::RichText,
         widgets::{button::Button, drag_value::DragValue, separator::Separator, slider::Slider},
     },
 };
@@ -26,6 +20,7 @@ use crate::{
     animation::{InAnimation, OutAnimation},
     config::{ColorSource, Config, DamageRange},
     damage::{DamageInstance, HitOffset},
+    scrolling_text::ScrollingText,
 };
 
 // epaint panics if we pass a very large font size
@@ -43,6 +38,7 @@ pub struct State {
     pub misc_offset: HitOffset,
     pub num_formatter: numfmt::Formatter,
     damage_range_update: Option<DamageRangeUpdate>,
+    pub scrolling_text: ScrollingText,
 }
 
 impl State {
@@ -68,6 +64,7 @@ impl State {
                 .unwrap()
                 .precision(numfmt::Precision::Decimals(0)),
             damage_range_update: None,
+            scrolling_text: ScrollingText::default(),
         }
     }
 }
@@ -112,7 +109,7 @@ impl<'a> State {
             ui.horizontal(|ui| {
                 ui.label("Duration:");
                 ui.add(
-                    DragValue::new(&mut config.base_duration_secs)
+                    DragValue::new(&mut config.base_duration_seconds)
                         .range(0.0..=10.0)
                         .speed(0.01)
                         .fixed_decimals(2)
@@ -137,8 +134,8 @@ impl<'a> State {
                 ui.add(
                     DragValue::new(&mut config.font_size)
                         .range(10.0..=500.0)
-                        .speed(0.01)
-                        .fixed_decimals(2),
+                        .speed(0.1)
+                        .fixed_decimals(1),
                 );
             });
         });
@@ -289,6 +286,10 @@ impl<'a> State {
             ui.checkbox(&mut config.misc_show, "Enabled");
             config.misc.ui(ui);
         });
+
+        ui.collapsing("Scrolling Damage Text", |ui| {
+            config.scrolling_text.ui(ui);
+        });
     }
 
     pub fn ui(&mut self, ui: &mut BunnyUi) {
@@ -296,7 +297,7 @@ impl<'a> State {
         let config = &self.config;
         let painter = ui.painter();
         let max_rect = ui.max_rect();
-        let base_duration = Duration::from_secs_f32(config.base_duration_secs);
+        let base_duration = Duration::from_secs_f32(config.base_duration_seconds);
 
         self.damage.retain(|damage_instance| {
             let duration = base_duration.mul_f32(damage_instance.duration_modifier());
@@ -331,6 +332,8 @@ impl<'a> State {
             }
             elapsed < duration
         });
+
+        self.scrolling_text.ui(&config.scrolling_text, ui);
     }
 
     pub fn save_config(&self) {
