@@ -24,14 +24,22 @@ impl ScrollingText {
     #[inline]
     pub fn add(&mut self, entry: ScrollingTextEntry, font_size: f32) {
         // Check if there's space to draw the new entry
-        let adjust = self
+        let mut adjust = self
             .entries
             .last()
             .map_or(0.0, |last| font_size - last.scrolled_distance);
-        // If not, adjust all entries further into their scroll
+        // If not, adjust entries further into their scroll
         if adjust > 0.0 {
-            for entry in &mut self.entries {
+            let mut prev: Option<f32> = None;
+            for entry in self.entries.iter_mut().rev() {
+                if let Some(prev) = prev {
+                    adjust = font_size - (entry.scrolled_distance - prev);
+                    if adjust <= 0.0 {
+                        break;
+                    }
+                }
                 entry.scrolled_distance += adjust;
+                prev = Some(entry.scrolled_distance);
             }
         }
         self.entries.push(entry);
