@@ -4,10 +4,10 @@ use bunny_components::Text;
 use bunny_plugin::{
     GameMode, PluginContext,
     bunny_ui::{
-        Color32, Id, Vec2,
+        Id, Vec2,
         align::Align2,
         containers::{combo_box::ComboBox, frame::Frame, grid::Grid},
-        paint::text::fonts::{FontFamily, FontId},
+        paint::text::fonts::FontId,
         ui::BunnyUi,
         widgets::{button::Button, drag_value::DragValue, separator::Separator, slider::Slider},
     },
@@ -17,6 +17,7 @@ use strum::IntoEnumIterator;
 use tracing::error;
 
 use crate::{
+    address::Addresses,
     animation::{InAnimation, OutAnimation},
     config::{ColorSource, Config, DamageRange},
     damage::{DamageInstance, HitOffset},
@@ -28,6 +29,7 @@ const MAX_FONT_SIZE: f32 = 500.0;
 
 pub struct State {
     pub config: Config,
+    pub addresses: Addresses,
     config_path: PathBuf,
     pub structs: MhfzStructs,
     pub damage: Vec<DamageInstance>,
@@ -42,7 +44,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(context: &PluginContext) -> Self {
+    pub fn new(context: &PluginContext, addresses: Addresses) -> Self {
         let config_path = context
             .config_dir()
             .join(format!("{}.toml", env!("CARGO_PKG_NAME")));
@@ -51,6 +53,7 @@ impl State {
         let structs = MhfzStructs::new(info.address, info.game_mode == GameMode::HighGrade);
         Self {
             config_path,
+            addresses,
             config,
             structs,
             damage: Vec::new(),
@@ -99,6 +102,7 @@ impl<'a> State {
         }
 
         ui.collapsing("General", |ui| {
+            ui.checkbox(&mut config.enable_damage_numbers, "Enable damage numbers");
             ui.checkbox(&mut config.animations, "Animations");
             ui.checkbox(&mut config.own_attacks_only, "Own attacks only");
             ui.checkbox(

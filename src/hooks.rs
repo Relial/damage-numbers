@@ -5,7 +5,7 @@ use bunny_plugin::{
 };
 use glam::vec3;
 use ilhook::x86::{HookType, Registers};
-use mhfz_structs::{AttackEffectInfo, Entity, HitzoneInfo};
+use mhfz_structs::{AttackEffectInfo, Entity, HitzoneInfo, Monster};
 use tracing::debug;
 
 use crate::{
@@ -43,8 +43,10 @@ pub unsafe extern "C" fn on_quest_update() {
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(config.ice_age)
             .with_position_offset(vec2(100.0, 0.0) + state.ice_age_offset.next());
-        let tick = DamageInstance::new(damage, position, &state.num_formatter, settings);
-        state.damage.push(tick);
+        if config.enable_damage_numbers {
+            let tick = DamageInstance::new(damage, position, &state.num_formatter, settings);
+            state.damage.push(tick);
+        }
 
         if config.scrolling_text.enabled {
             let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
@@ -55,7 +57,47 @@ pub unsafe extern "C" fn on_quest_update() {
     }
 }
 
-unsafe extern "cdecl" fn on_hit_finalized(reg: *mut Registers, _: usize) {
+fn hit_checks(reg: *mut Registers, attack: AttackEffectInfo, monster: Monster) -> bool {
+    unsafe {
+        let a = (((*reg).ebp - 0x96) as *const u8).read();
+        if a != 0 {
+            return false;
+        }
+
+        let att = attack.inner();
+        let a = att.wrapping_byte_add(0x9a).read();
+        if a & 4 != 0 {
+            return false;
+        }
+
+        let a = att.wrapping_byte_add(0xf5).read();
+        let b = monster.inner().wrapping_byte_add(0x4e4).read();
+        if a != 0 && b != 0 && (a ^ b) & 1 == 0 {
+            return false;
+        }
+
+        let a4 = (att.wrapping_byte_add(0x4) as *const u16).read();
+        let b6 = (att.wrapping_byte_add(0x6) as *const u16).read();
+        !(a4 == 3 && b6 == 0x21)
+    }
+}
+
+fn hit_damage_check(attack: AttackEffectInfo, addresses: &Addresses) -> Option<u32> {
+    unsafe {
+        let att = attack.inner();
+        let a = (att.wrapping_add(0x4) as *const u16).read();
+        let b = (att.wrapping_add(0x6) as *const u16).read();
+        let c = (att as *const u16).read();
+        let d = attack.attacker_addr();
+        if a == 0x65 && b == 0xa && c != 0 && d != 0 {
+            Some(addresses.alt_damage(attack))
+        } else {
+            None
+        }
+    }
+}
+
+unsafe extern "cdecl" fn on_hit(reg: *mut Registers, _: usize) {
     unsafe {
         let state = STATE.get_unchecked_mut();
         let config = &state.config;
@@ -71,7 +113,8 @@ unsafe extern "cdecl" fn on_hit_finalized(reg: *mut Registers, _: usize) {
             return;
         }
 
-        let attack = AttackEffectInfo::new((*reg).edi as *mut u8);
+        let attack_ptr = (((*reg).ebp - 0x88) as *const *mut u8).read();
+        let attack = AttackEffectInfo::new(attack_ptr);
         let attacker_addr = attack.attacker_addr() as usize;
         if config.own_attacks_only
             && attacker_addr
@@ -87,8 +130,18 @@ unsafe extern "cdecl" fn on_hit_finalized(reg: *mut Registers, _: usize) {
         {
             return;
         }
+        if !hit_checks(reg, attack, monster) {
+            return;
+        }
 
-        let damage_before_defense = ((*reg).eax & 0xFFFF) as i16;
+        let mut damage_before_defense = hit_damage_check(attack, &state.addresses)
+            .unwrap_or((((*reg).ebp - 0x94) as *const u32).read());
+        let player_addr = (((*reg).ebp - 0x84) as *const u32).read();
+        damage_before_defense = state
+            .addresses
+            .damage_reduction(player_addr, damage_before_defense);
+        damage_before_defense = damage_before_defense.min(0x7fff);
+
         let defense = monster.defense_multiplier();
         let hit_damage = (damage_before_defense as f32 * defense) as i16;
         let max_health = monster.max_health();
@@ -151,13 +204,15 @@ unsafe extern "cdecl" fn on_hit_finalized(reg: *mut Registers, _: usize) {
                 .with_position_offset(state.hit_offset.next())
                 .with_duration_modifier(duration_mod)
                 .with_shadow(shadow);
-            let hit = DamageInstance::new(
-                attack_damage,
-                hit_position,
-                &state.num_formatter,
-                attack_settings,
-            );
-            state.damage.push(hit);
+            if config.enable_damage_numbers {
+                let hit = DamageInstance::new(
+                    attack_damage,
+                    hit_position,
+                    &state.num_formatter,
+                    attack_settings,
+                );
+                state.damage.push(hit);
+            }
 
             if config.scrolling_text.enabled {
                 let entry = ScrollingTextEntry::new(
@@ -174,13 +229,15 @@ unsafe extern "cdecl" fn on_hit_finalized(reg: *mut Registers, _: usize) {
         if config.blast_show && blast_damage > 0 {
             let blast_settings = PaintSettings::from_damage_settings(config.blast)
                 .with_position_offset(vec2(0.0, -150.0));
-            let hit = DamageInstance::new(
-                blast_damage,
-                hit_position,
-                &state.num_formatter,
-                blast_settings,
-            );
-            state.damage.push(hit);
+            if config.enable_damage_numbers {
+                let hit = DamageInstance::new(
+                    blast_damage,
+                    hit_position,
+                    &state.num_formatter,
+                    blast_settings,
+                );
+                state.damage.push(hit);
+            }
 
             if config.scrolling_text.enabled {
                 let entry = ScrollingTextEntry::new(
@@ -196,9 +253,9 @@ unsafe extern "cdecl" fn on_hit_finalized(reg: *mut Registers, _: usize) {
     }
 }
 
-fn hook_hit_finalized(addresses: &Addresses) -> Result<NoCbHookPoint> {
-    let hook_address = addresses.hit_finalized;
-    let builder = NoCbHookBuilder::new(hook_address, HookType::JmpBack(on_hit_finalized));
+fn hook_hit(addresses: &Addresses) -> Result<NoCbHookPoint> {
+    let hook_address = addresses.hit;
+    let builder = NoCbHookBuilder::new(hook_address, HookType::JmpBack(on_hit));
     let hook_point = unsafe { builder.hook() }?;
     debug!("Hooked at {:#X}", hook_address);
     Ok(hook_point)
@@ -228,8 +285,11 @@ unsafe extern "cdecl" fn on_poison(reg: *mut Registers, _: usize) {
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(config.poison)
             .with_position_offset(vec2(-100.0, 0.0));
-        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
-        state.damage.push(damage_instance);
+        if config.enable_damage_numbers {
+            let damage_instance =
+                DamageInstance::new(damage, position, &state.num_formatter, settings);
+            state.damage.push(damage_instance);
+        }
 
         if config.scrolling_text.enabled {
             let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
@@ -273,8 +333,11 @@ unsafe extern "cdecl" fn on_secret_tech(reg: *mut Registers, _: usize) {
         }
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(config.secret_tech);
-        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
-        state.damage.push(damage_instance);
+        if config.enable_damage_numbers {
+            let damage_instance =
+                DamageInstance::new(damage, position, &state.num_formatter, settings);
+            state.damage.push(damage_instance);
+        }
 
         if config.scrolling_text.enabled {
             let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
@@ -319,8 +382,11 @@ unsafe extern "cdecl" fn on_mudslide(reg: *mut Registers, _: usize) {
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(config.misc)
             .with_position_offset(state.misc_offset.next() * 2.0);
-        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
-        state.damage.push(damage_instance);
+        if config.enable_damage_numbers {
+            let damage_instance =
+                DamageInstance::new(damage, position, &state.num_formatter, settings);
+            state.damage.push(damage_instance);
+        }
 
         if config.scrolling_text.enabled {
             let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
@@ -363,8 +429,11 @@ unsafe extern "cdecl" fn on_stalactite(reg: *mut Registers, _: usize) {
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(config.misc)
             .with_position_offset(state.misc_offset.next() * 2.0);
-        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
-        state.damage.push(damage_instance);
+        if config.enable_damage_numbers {
+            let damage_instance =
+                DamageInstance::new(damage, position, &state.num_formatter, settings);
+            state.damage.push(damage_instance);
+        }
 
         if config.scrolling_text.enabled {
             let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
@@ -414,8 +483,11 @@ unsafe extern "cdecl" fn on_hexa_general(reg: *mut Registers, _: usize) {
         };
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(settings);
-        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
-        state.damage.push(damage_instance);
+        if config.enable_damage_numbers {
+            let damage_instance =
+                DamageInstance::new(damage, position, &state.num_formatter, settings);
+            state.damage.push(damage_instance);
+        }
 
         if config.scrolling_text.enabled {
             let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
@@ -465,8 +537,11 @@ unsafe extern "cdecl" fn on_hexa_fire_thunder(reg: *mut Registers, _: usize) {
         };
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(settings);
-        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
-        state.damage.push(damage_instance);
+        if config.enable_damage_numbers {
+            let damage_instance =
+                DamageInstance::new(damage, position, &state.num_formatter, settings);
+            state.damage.push(damage_instance);
+        }
 
         if config.scrolling_text.enabled {
             let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
@@ -509,8 +584,11 @@ unsafe extern "cdecl" fn on_hexa_post_fire(reg: *mut Registers, _: usize) {
         let settings = config.hexaflash.fire;
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(settings);
-        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
-        state.damage.push(damage_instance);
+        if config.enable_damage_numbers {
+            let damage_instance =
+                DamageInstance::new(damage, position, &state.num_formatter, settings);
+            state.damage.push(damage_instance);
+        }
 
         if config.scrolling_text.enabled {
             let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
@@ -553,8 +631,11 @@ unsafe extern "cdecl" fn on_hexa_post_thunder(reg: *mut Registers, _: usize) {
         let settings = config.hexaflash.thunder;
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(settings);
-        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
-        state.damage.push(damage_instance);
+        if config.enable_damage_numbers {
+            let damage_instance =
+                DamageInstance::new(damage, position, &state.num_formatter, settings);
+            state.damage.push(damage_instance);
+        }
 
         if config.scrolling_text.enabled {
             let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
@@ -597,8 +678,11 @@ unsafe extern "cdecl" fn on_hexa_post_raw(reg: *mut Registers, _: usize) {
         let settings = config.hexaflash.raw;
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(settings);
-        let damage_instance = DamageInstance::new(damage, position, &state.num_formatter, settings);
-        state.damage.push(damage_instance);
+        if config.enable_damage_numbers {
+            let damage_instance =
+                DamageInstance::new(damage, position, &state.num_formatter, settings);
+            state.damage.push(damage_instance);
+        }
 
         if config.scrolling_text.enabled {
             let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
@@ -619,7 +703,7 @@ fn hook_hexa_post_raw(addresses: &Addresses) -> Result<NoCbHookPoint> {
 
 pub fn init(addresses: &Addresses) -> Result<Vec<NoCbHookPoint>> {
     Ok(vec![
-        hook_hit_finalized(addresses)?,
+        hook_hit(addresses)?,
         hook_poison(addresses)?,
         hook_secret_tech(addresses)?,
         hook_mudslide(addresses)?,

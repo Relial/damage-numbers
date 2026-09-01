@@ -23,6 +23,7 @@ const DRAGON: Color32 = Color32::from_rgb(107, 114, 182);
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Config {
+    pub enable_damage_numbers: bool,
     pub base_duration_seconds: f32,
     pub animations: bool,
     pub font: FontFamily,
@@ -54,6 +55,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            enable_damage_numbers: true,
             base_duration_seconds: 1.5,
             animations: true,
             font: FontFamily::Name("Toronto-Regular".into()),

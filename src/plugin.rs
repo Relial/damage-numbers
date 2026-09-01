@@ -22,7 +22,7 @@ pub extern "C" fn init(context: &PluginContext) -> PluginInfo {
         .init();
 
     let addresses = Addresses::new(context.mhfo_info());
-    let state = State::new(context);
+    let state = State::new(context, addresses);
     let state_res = STATE.set(state);
     let mut info = PluginInfo::new(PLUGIN_NAME, PLUGIN_VERSION)
         .ui_menu(menu)
