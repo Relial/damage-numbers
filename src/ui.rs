@@ -41,6 +41,7 @@ pub struct State {
     pub num_formatter: numfmt::Formatter,
     damage_range_update: Option<DamageRangeUpdate>,
     pub scrolling_text: ScrollingText,
+    pub recalculate_scrolling_text: bool,
 }
 
 impl State {
@@ -68,6 +69,7 @@ impl State {
                 .precision(numfmt::Precision::Decimals(0)),
             damage_range_update: None,
             scrolling_text: ScrollingText::default(),
+            recalculate_scrolling_text: false,
         }
     }
 }
@@ -292,7 +294,7 @@ impl<'a> State {
         });
 
         ui.collapsing("Scrolling Damage Text", |ui| {
-            config.scrolling_text.ui(ui);
+            self.recalculate_scrolling_text = config.scrolling_text.ui(ui);
         });
     }
 
@@ -337,6 +339,10 @@ impl<'a> State {
             elapsed < duration
         });
 
+        if self.recalculate_scrolling_text {
+            self.scrolling_text
+                .recalculate_positions(config.scrolling_text.font_size);
+        }
         self.scrolling_text.ui(&config.scrolling_text, ui);
     }
 

@@ -21,7 +21,6 @@ pub struct ScrollingText {
 }
 
 impl ScrollingText {
-    #[inline]
     pub fn add(&mut self, entry: ScrollingTextEntry, font_size: f32) {
         // Check if there's space to draw the new entry
         let mut adjust = self
@@ -43,6 +42,17 @@ impl ScrollingText {
             }
         }
         self.entries.push(entry);
+    }
+
+    pub fn recalculate_positions(&mut self, font_size: f32) {
+        let mut prev: Option<f32> = None;
+        for entry in self.entries.iter_mut().rev() {
+            if let Some(prev) = prev {
+                let adjust = font_size - (entry.scrolled_distance - prev);
+                entry.scrolled_distance += adjust;
+            }
+            prev = Some(entry.scrolled_distance);
+        }
     }
 
     pub fn ui(&mut self, config: &ScrollingTextConfig, ui: &mut BunnyUi) {
@@ -171,7 +181,8 @@ impl Default for ScrollingTextConfig {
 }
 
 impl ScrollingTextConfig {
-    pub fn ui<'a>(&'a mut self, ui: &mut BunnyUi<'a>) {
+    /// Returns whether the font size changed
+    pub fn ui<'a>(&'a mut self, ui: &mut BunnyUi<'a>) -> bool {
         ui.checkbox(&mut self.enabled, "Enabled");
         CollapsingHeader::new("Area")
             .id(ui.next_id())
@@ -205,15 +216,15 @@ impl ScrollingTextConfig {
                     }
                 });
         });
-        ui.horizontal(|ui| {
+        let font_size_changed = ui.horizontal(|ui| {
             ui.label("Font size:");
             ui.add(
                 DragValue::new(&mut self.font_size)
                     .range(10.0..=500.0)
                     .speed(0.1)
                     .fixed_decimals(1),
-            );
-        });
+            ).changed()
+        }).inner;
         ui.horizontal(|ui| {
             ui.label("Text Y offset:");
             ui.add(
@@ -246,6 +257,8 @@ impl ScrollingTextConfig {
             ui.label("Fade out height:");
             ui.add(DragValue::new(&mut self.fade_out_height).fixed_decimals(0));
         });
+
+        font_size_changed
     }
 
     fn apply_fade(&self, text: &mut Text, scrolled: f32, total_scroll_distance: f32) {
