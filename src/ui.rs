@@ -342,6 +342,7 @@ impl<'a> State {
         if self.recalculate_scrolling_text {
             self.scrolling_text
                 .recalculate_positions(config.scrolling_text.font_size);
+            self.recalculate_scrolling_text = false;
         }
         self.scrolling_text.ui(&config.scrolling_text, ui);
     }
