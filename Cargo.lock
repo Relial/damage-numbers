@@ -260,6 +260,7 @@ dependencies = [
 [[package]]
 name = "bunny-components"
 version = "0.1.0"
+source = "git+https://github.com/Relial/bunny-components.git?rev=3908a3651a14029032140cd6ed37ad7b0949ac03#3908a3651a14029032140cd6ed37ad7b0949ac03"
 dependencies = [
  "bunny-ui",
  "glam",
@@ -941,6 +942,7 @@ checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
 [[package]]
 name = "mhfz-structs"
 version = "0.1.0"
+source = "git+https://github.com/Relial/mhfz-structs.git?rev=d7bdad2996a0cc96561a6f81ec5455203cea3844#d7bdad2996a0cc96561a6f81ec5455203cea3844"
 dependencies = [
  "glam",
  "strum",

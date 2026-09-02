@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 anyhow = "1.0.104"
 ilhook = { version = "2.3.0", default-features = false, features = ["x86"] }
 bunny-plugin = { git = "https://github.com/Relial/bunny-plugin.git", tag = "api-v3", features = ["serde"] }
-bunny-components = { path = "../bunny-components", features = ["serde"] }
+bunny-components = { git = "https://github.com/Relial/bunny-components.git", rev = "3908a3651a14029032140cd6ed37ad7b0949ac03", features = ["serde"] }
 tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
 serde = { version = "1.0.229", features = ["derive"] }
@@ -21,6 +21,6 @@ windows = { version = "0.*", features = [
     "Win32_System_LibraryLoader",
 ] }
 glam = "0.33.4"
-mhfz-structs = { path = "../mhfz-structs" }
+mhfz-structs = { git = "https://github.com/Relial/mhfz-structs.git", rev = "d7bdad2996a0cc96561a6f81ec5455203cea3844" }
 numfmt = "1.2.0"
 strum = { version = "0.28.0", features = ["derive"] }
