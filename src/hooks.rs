@@ -701,6 +701,106 @@ fn hook_hexa_post_raw(addresses: &Addresses) -> Result<NoCbHookPoint> {
     Ok(hook_point)
 }
 
+unsafe extern "cdecl" fn on_ryuuki_bleed(reg: *mut Registers, _: usize) {
+    unsafe {
+        let state = STATE.get_unchecked_mut();
+        let config = &state.config;
+        if !config.ryuuki_show {
+            return;
+        }
+        let Some(player_info) = state.structs.player_info() else {
+            return;
+        };
+        let monster = state.structs.monster_from_ptr((*reg).edi as *mut u8);
+        if monster.area() != player_info.area() {
+            return;
+        }
+        if config.hide_damage_on_small_monsters && !monster.is_large() {
+            return;
+        }
+        let damage_before_defense = ((*reg).eax & 0xffff) as i16;
+        if damage_before_defense < 1 {
+            return;
+        }
+        let defense = monster.defense_multiplier();
+        let damage = ((damage_before_defense as f32 * defense) as i16).max(1);
+        let settings = PaintSettings::from_damage_settings(config.ryuuki)
+            .with_position_offset(state.misc_offset.next());
+        let position = monster.pos() + vec3(0.0, 200.0, 0.0);
+
+        if config.enable_damage_numbers {
+            let damage_instance =
+                DamageInstance::new(damage, position, &state.num_formatter, settings);
+            state.damage.push(damage_instance);
+        }
+
+        if config.scrolling_text.enabled {
+            let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
+            state
+                .scrolling_text
+                .add(entry, config.scrolling_text.font_size);
+        }
+    }
+}
+
+fn hook_ryuuki_bleed(addresses: &Addresses) -> Result<NoCbHookPoint> {
+    let hook_address = addresses.ryuuki_bleed;
+    let builder = NoCbHookBuilder::new(hook_address, HookType::JmpBack(on_ryuuki_bleed));
+    let hook_point = unsafe { builder.hook() }?;
+    debug!("Hooked at {:#X}", hook_address);
+    Ok(hook_point)
+}
+
+unsafe extern "cdecl" fn on_ryuuki_explosion(reg: *mut Registers, _: usize) {
+    unsafe {
+        let state = STATE.get_unchecked_mut();
+        let config = &state.config;
+        if !config.ryuuki_show {
+            return;
+        }
+        let Some(player_info) = state.structs.player_info() else {
+            return;
+        };
+        let monster = state.structs.monster_from_ptr((*reg).edi as *mut u8);
+        if monster.area() != player_info.area() {
+            return;
+        }
+        if config.hide_damage_on_small_monsters && !monster.is_large() {
+            return;
+        }
+        let damage_before_defense = ((*reg).edx & 0xffff) as i16;
+        if damage_before_defense < 1 {
+            return;
+        }
+        let defense = monster.defense_multiplier();
+        let damage = ((damage_before_defense as f32 * defense) as i16).max(1);
+        let settings = PaintSettings::from_damage_settings(config.ryuuki)
+            .with_position_offset(state.misc_offset.next());
+        let position = monster.pos() + vec3(0.0, 200.0, 0.0);
+
+        if config.enable_damage_numbers {
+            let damage_instance =
+                DamageInstance::new(damage, position, &state.num_formatter, settings);
+            state.damage.push(damage_instance);
+        }
+
+        if config.scrolling_text.enabled {
+            let entry = ScrollingTextEntry::new(damage, settings.color, &state.num_formatter);
+            state
+                .scrolling_text
+                .add(entry, config.scrolling_text.font_size);
+        }
+    }
+}
+
+fn hook_ryuuki_explosion(addresses: &Addresses) -> Result<NoCbHookPoint> {
+    let hook_address = addresses.ryuuki_explosion;
+    let builder = NoCbHookBuilder::new(hook_address, HookType::JmpBack(on_ryuuki_explosion));
+    let hook_point = unsafe { builder.hook() }?;
+    debug!("Hooked at {:#X}", hook_address);
+    Ok(hook_point)
+}
+
 pub fn init(addresses: &Addresses) -> Result<Vec<NoCbHookPoint>> {
     Ok(vec![
         hook_hit(addresses)?,
@@ -713,5 +813,7 @@ pub fn init(addresses: &Addresses) -> Result<Vec<NoCbHookPoint>> {
         hook_hexa_post_fire(addresses)?,
         hook_hexa_post_thunder(addresses)?,
         hook_hexa_post_raw(addresses)?,
+        hook_ryuuki_explosion(addresses)?,
+        hook_ryuuki_bleed(addresses)?,
     ])
 }

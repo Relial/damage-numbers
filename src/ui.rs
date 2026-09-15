@@ -293,6 +293,11 @@ impl<'a> State {
             config.misc.ui(ui);
         });
 
+        ui.collapsing("Tonfa ryuuki explosion/bleed", |ui| {
+            ui.checkbox(&mut config.ryuuki_show, "Enabled");
+            config.ryuuki.ui(ui);
+        });
+
         ui.collapsing("Scrolling Damage Text", |ui| {
             self.recalculate_scrolling_text = config.scrolling_text.ui(ui);
         });

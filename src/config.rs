@@ -49,6 +49,8 @@ pub struct Config {
     pub hexaflash: Hexaflash,
     pub misc_show: bool,
     pub misc: DamageSettings,
+    pub ryuuki_show: bool,
+    pub ryuuki: DamageSettings,
     pub scrolling_text: ScrollingTextConfig,
 }
 
@@ -159,6 +161,13 @@ impl Default for Config {
                 color: Color32::LIGHT_YELLOW,
                 scale: 2.0,
                 duration: 1.5,
+                shadow: Default::default(),
+            },
+            ryuuki_show: true,
+            ryuuki: DamageSettings {
+                color: Color32::from_rgb(255, 191, 233),
+                scale: 1.0,
+                duration: 1.0,
                 shadow: Default::default(),
             },
             scrolling_text: Default::default(),

@@ -15,6 +15,8 @@ pub struct Addresses {
     pub hexa_post_fire: usize,
     pub hexa_post_thunder: usize,
     pub hexa_post_raw: usize,
+    pub ryuuki_explosion: usize,
+    pub ryuuki_bleed: usize,
 }
 
 impl Addresses {
@@ -34,6 +36,8 @@ impl Addresses {
                 hexa_post_fire: dll + 0x13ce818,
                 hexa_post_thunder: dll + 0x13ceb43,
                 hexa_post_raw: dll + 0x13cecab,
+                ryuuki_explosion: dll + 0x85540f,
+                ryuuki_bleed: dll + 0x855529,
             },
             GameMode::HighGrade => Self {
                 hit: dll + 0x8c0218,
@@ -48,6 +52,8 @@ impl Addresses {
                 hexa_post_fire: dll + 0x13f3a78,
                 hexa_post_thunder: dll + 0x13f3da3,
                 hexa_post_raw: dll + 0x13f3f0b,
+                ryuuki_explosion: dll + 0x8700df,
+                ryuuki_bleed: dll + 0x8701f9,
             },
         }
     }
