@@ -42,6 +42,11 @@ pub struct State {
     damage_range_update: Option<DamageRangeUpdate>,
     pub scrolling_text: ScrollingText,
     pub recalculate_scrolling_text: bool,
+    // We discard blast damage if it's the same as last hit
+    // to fix a stupid multiplayer issue caused by the game not
+    // clearing or otherwise processing blast for nonhosts.
+    // This might mean we discard some super rare real blast hit but oh well.
+    pub last_hit_blast_damage: i16,
 }
 
 impl State {
@@ -70,6 +75,7 @@ impl State {
             damage_range_update: None,
             scrolling_text: ScrollingText::default(),
             recalculate_scrolling_text: false,
+            last_hit_blast_damage: 0,
         }
     }
 }

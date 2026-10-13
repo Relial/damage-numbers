@@ -182,7 +182,7 @@ unsafe extern "cdecl" fn on_hit(reg: *mut Registers, _: usize) {
             |r| (r.settings.scale, r.settings.duration, r.settings.shadow),
         );
 
-        let blast_damage = {
+        let mut blast_damage = {
             // Blast should only trigger on the part we're hitting, but this is cheap so check just in case
             let mut damage: i16 = monster.blast_damage().iter().sum();
             if damage > 0 {
@@ -191,6 +191,11 @@ unsafe extern "cdecl" fn on_hit(reg: *mut Registers, _: usize) {
             }
             damage
         };
+        if state.last_hit_blast_damage == blast_damage {
+            blast_damage = 0;
+        } else {
+            state.last_hit_blast_damage = blast_damage;
+        }
 
         if config.attacks_show {
             let mut attack_damage = (damage_before_defense as f32 * defense) as i16;
