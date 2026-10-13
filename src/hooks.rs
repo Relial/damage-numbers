@@ -40,6 +40,11 @@ pub unsafe extern "C" fn on_quest_update() {
         }
         let defense = monster.defense_multiplier();
         let damage = ((damage_before_defense as f32 * defense) as i16).max(1);
+        let damage = if config.effective_health_damage {
+            damage as f32 / defense
+        } else {
+            damage as f32
+        };
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(config.ice_age)
             .with_position_offset(vec2(100.0, 0.0) + state.ice_age_offset.next());
@@ -203,6 +208,11 @@ unsafe extern "cdecl" fn on_hit(reg: *mut Registers, _: usize) {
             if total_damage == 0 && damage_before_defense > 0 {
                 attack_damage = 1;
             }
+            let attack_damage = if config.effective_health_damage {
+                attack_damage as f32 / defense
+            } else {
+                attack_damage as f32
+            };
             let attack_settings = PaintSettings::default()
                 .with_color(color)
                 .with_scale(scale)
@@ -234,6 +244,11 @@ unsafe extern "cdecl" fn on_hit(reg: *mut Registers, _: usize) {
         if config.blast_show && blast_damage > 0 {
             let blast_settings = PaintSettings::from_damage_settings(config.blast)
                 .with_position_offset(vec2(0.0, -150.0));
+            let blast_damage = if config.effective_health_damage {
+                blast_damage as f32 / defense
+            } else {
+                blast_damage as f32
+            };
             if config.enable_damage_numbers {
                 let hit = DamageInstance::new(
                     blast_damage,
@@ -287,6 +302,12 @@ unsafe extern "cdecl" fn on_poison(reg: *mut Registers, _: usize) {
         if damage < 1 {
             return;
         }
+        let damage = if config.effective_health_damage {
+            let defense = monster.defense_multiplier();
+            damage as f32 / defense
+        } else {
+            damage as f32
+        };
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(config.poison)
             .with_position_offset(vec2(-100.0, 0.0));
@@ -336,6 +357,12 @@ unsafe extern "cdecl" fn on_secret_tech(reg: *mut Registers, _: usize) {
         if damage < 1 {
             return;
         }
+        let damage = if config.effective_health_damage {
+            let defense = monster.defense_multiplier();
+            damage as f32 / defense
+        } else {
+            damage as f32
+        };
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(config.secret_tech);
         if config.enable_damage_numbers {
@@ -384,6 +411,12 @@ unsafe extern "cdecl" fn on_mudslide(reg: *mut Registers, _: usize) {
         if damage < 1 {
             return;
         }
+        let damage = if config.effective_health_damage {
+            let defense = monster.defense_multiplier();
+            damage as f32 / defense
+        } else {
+            damage as f32
+        };
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(config.misc)
             .with_position_offset(state.misc_offset.next() * 2.0);
@@ -431,6 +464,12 @@ unsafe extern "cdecl" fn on_stalactite(reg: *mut Registers, _: usize) {
         if damage < 1 {
             return;
         }
+        let damage = if config.effective_health_damage {
+            let defense = monster.defense_multiplier();
+            damage as f32 / defense
+        } else {
+            damage as f32
+        };
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(config.misc)
             .with_position_offset(state.misc_offset.next() * 2.0);
@@ -483,6 +522,12 @@ unsafe extern "cdecl" fn on_hexa_general(reg: *mut Registers, _: usize) {
         if damage < 1 {
             return;
         }
+        let damage = if config.effective_health_damage {
+            let defense = monster.defense_multiplier();
+            damage as f32 / defense
+        } else {
+            damage as f32
+        };
         let Some(settings) = config.hexaflash.settings_from_element_idx(element_idx) else {
             return;
         };
@@ -532,6 +577,12 @@ unsafe extern "cdecl" fn on_hexa_fire_thunder(reg: *mut Registers, _: usize) {
         if damage < 1 {
             return;
         }
+        let damage = if config.effective_health_damage {
+            let defense = monster.defense_multiplier();
+            damage as f32 / defense
+        } else {
+            damage as f32
+        };
         let element_check = (((*reg).ebp + 0xc) as *const u32).read();
         let settings = if element_check == 3 {
             config.hexaflash.thunder
@@ -586,6 +637,12 @@ unsafe extern "cdecl" fn on_hexa_post_fire(reg: *mut Registers, _: usize) {
         if damage < 1 {
             return;
         }
+        let damage = if config.effective_health_damage {
+            let defense = monster.defense_multiplier();
+            damage as f32 / defense
+        } else {
+            damage as f32
+        };
         let settings = config.hexaflash.fire;
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(settings);
@@ -633,6 +690,12 @@ unsafe extern "cdecl" fn on_hexa_post_thunder(reg: *mut Registers, _: usize) {
         if damage < 1 {
             return;
         }
+        let damage = if config.effective_health_damage {
+            let defense = monster.defense_multiplier();
+            damage as f32 / defense
+        } else {
+            damage as f32
+        };
         let settings = config.hexaflash.thunder;
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(settings);
@@ -680,6 +743,12 @@ unsafe extern "cdecl" fn on_hexa_post_raw(reg: *mut Registers, _: usize) {
         if damage < 1 {
             return;
         }
+        let damage = if config.effective_health_damage {
+            let defense = monster.defense_multiplier();
+            damage as f32 / defense
+        } else {
+            damage as f32
+        };
         let settings = config.hexaflash.raw;
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
         let settings = PaintSettings::from_damage_settings(settings);
@@ -729,6 +798,11 @@ unsafe extern "cdecl" fn on_ryuuki_bleed(reg: *mut Registers, _: usize) {
         }
         let defense = monster.defense_multiplier();
         let damage = ((damage_before_defense as f32 * defense) as i16).max(1);
+        let damage = if config.effective_health_damage {
+            damage as f32 / defense
+        } else {
+            damage as f32
+        };
         let settings = PaintSettings::from_damage_settings(config.ryuuki)
             .with_position_offset(state.misc_offset.next());
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);
@@ -779,6 +853,11 @@ unsafe extern "cdecl" fn on_ryuuki_explosion(reg: *mut Registers, _: usize) {
         }
         let defense = monster.defense_multiplier();
         let damage = ((damage_before_defense as f32 * defense) as i16).max(1);
+        let damage = if config.effective_health_damage {
+            damage as f32 / defense
+        } else {
+            damage as f32
+        };
         let settings = PaintSettings::from_damage_settings(config.ryuuki)
             .with_position_offset(state.misc_offset.next());
         let position = monster.pos() + vec3(0.0, 200.0, 0.0);

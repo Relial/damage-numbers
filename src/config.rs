@@ -22,10 +22,12 @@ const THUNDER: Color32 = Color32::from_rgb(255, 254, 3);
 const DRAGON: Color32 = Color32::from_rgb(107, 114, 182);
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Config {
     pub enable_damage_numbers: bool,
     pub base_duration_seconds: f32,
     pub animations: bool,
+    pub effective_health_damage: bool,
     pub font: FontFamily,
     pub font_size: f32,
     pub attacks_show: bool,
@@ -60,6 +62,7 @@ impl Default for Config {
             enable_damage_numbers: true,
             base_duration_seconds: 1.5,
             animations: true,
+            effective_health_damage: false,
             font: FontFamily::Name("Toronto-Regular".into()),
             font_size: 40.0,
             attacks_show: true,

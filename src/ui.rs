@@ -112,6 +112,10 @@ impl<'a> State {
         ui.collapsing("General", |ui| {
             ui.checkbox(&mut config.enable_damage_numbers, "Enable damage numbers");
             ui.checkbox(&mut config.animations, "Animations");
+            ui.checkbox(
+                &mut config.effective_health_damage,
+                "Convert damage to \"effective health\" damage",
+            );
             ui.checkbox(&mut config.own_attacks_only, "Own attacks only");
             ui.checkbox(
                 &mut config.hide_damage_on_small_monsters,

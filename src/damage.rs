@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 use bunny_components::TextShadow;
 use bunny_plugin::bunny_ui::{Color32, Vec2, vec2};
 use glam::Vec3;
+use numfmt::Numeric;
 
 use crate::config::{DamageSettings, Shadow};
 
@@ -36,8 +37,8 @@ pub struct DamageInstance {
 }
 
 impl DamageInstance {
-    pub fn new(
-        damage: i16,
+    pub fn new<N: Numeric>(
+        damage: N,
         position: Vec3,
         formatter: &numfmt::Formatter,
         settings: PaintSettings,

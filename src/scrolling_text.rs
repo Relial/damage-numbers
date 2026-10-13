@@ -11,6 +11,7 @@ use bunny_plugin::bunny_ui::{
     vec2,
     widgets::drag_value::DragValue,
 };
+use numfmt::Numeric;
 use serde::{Deserialize, Serialize};
 
 use crate::config::Shadow;
@@ -136,7 +137,7 @@ pub struct ScrollingTextEntry {
 }
 
 impl ScrollingTextEntry {
-    pub fn new(damage: i16, color: Color32, formatter: &numfmt::Formatter) -> Self {
+    pub fn new<N: Numeric>(damage: N, color: Color32, formatter: &numfmt::Formatter) -> Self {
         Self {
             damage: formatter.fmt_string(damage),
             color,
@@ -216,15 +217,18 @@ impl ScrollingTextConfig {
                     }
                 });
         });
-        let font_size_changed = ui.horizontal(|ui| {
-            ui.label("Font size:");
-            ui.add(
-                DragValue::new(&mut self.font_size)
-                    .range(10.0..=500.0)
-                    .speed(0.1)
-                    .fixed_decimals(1),
-            ).changed()
-        }).inner;
+        let font_size_changed = ui
+            .horizontal(|ui| {
+                ui.label("Font size:");
+                ui.add(
+                    DragValue::new(&mut self.font_size)
+                        .range(10.0..=500.0)
+                        .speed(0.1)
+                        .fixed_decimals(1),
+                )
+                .changed()
+            })
+            .inner;
         ui.horizontal(|ui| {
             ui.label("Text Y offset:");
             ui.add(
